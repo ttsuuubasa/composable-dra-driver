@@ -609,7 +609,7 @@ func (m *CDIManager) manageCDINodeLabel(ctx context.Context, machines []*machine
 							slog.Info("set labels for max of devices", "nodeName", machine.nodeName, "label", maxLabelKey+"="+max)
 						}
 					} else {
-						delete(node.Labels, maxLabelKey)
+						node.Labels[maxLabelKey] = "0"
 					}
 					minLabelKey := m.labelPrefix + "/" + device.k8sDeviceName + "-size-min"
 					if device.minDeviceCount != nil {
@@ -619,7 +619,7 @@ func (m *CDIManager) manageCDINodeLabel(ctx context.Context, machines []*machine
 							slog.Info("set labels for min of devices", "nodeName", machine.nodeName, "label", minLabelKey+"="+min)
 						}
 					} else {
-						delete(node.Labels, minLabelKey)
+						node.Labels[minLabelKey] = "0"
 					}
 				}
 			}

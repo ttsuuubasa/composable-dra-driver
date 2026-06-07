@@ -1429,8 +1429,8 @@ func TestCDIManagerManageCDINodeLabel(t *testing.T) {
 			loopSpecs: []loopSpec{
 				{
 					caseDevice:        CaseDeviceMinMaxNil,
-					expectedMinDevice: "",
-					expectedMaxDevice: "",
+					expectedMinDevice: "0",
+					expectedMaxDevice: "0",
 				},
 			},
 			expectedFabric: "1",
@@ -1457,7 +1457,7 @@ func TestCDIManagerManageCDINodeLabel(t *testing.T) {
 			expectedErr:    false,
 		},
 		{
-			name:       "When label is removed if min and max becomes nil",
+			name:       "When label is updated to 0 if min and max transitions from non-nil to nil",
 			useCM:      true,
 			nodeName:   "test-node-0",
 			deviceName: "test-device-1",
@@ -1469,8 +1469,8 @@ func TestCDIManagerManageCDINodeLabel(t *testing.T) {
 				},
 				{
 					caseDevice:        CaseDeviceMinMaxNil,
-					expectedMinDevice: "",
-					expectedMaxDevice: "",
+					expectedMinDevice: "0",
+					expectedMaxDevice: "0",
 				},
 			},
 			expectedFabric: "1",
