@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	resourceapi "k8s.io/api/resource/v1"
@@ -163,6 +164,8 @@ func StartCDIManager(ctx context.Context, cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
+	// Delete published ResourceSlices on shutdown.
+	defer m.cleanupResourceSlices(controllers)
 
 	wait.Until(func() {
 		slog.Info("Loop Start")
@@ -174,6 +177,34 @@ func StartCDIManager(ctx context.Context, cfg *config.Config) error {
 		}
 	}, cfg.ScanInterval, ctx.Done())
 	return nil
+}
+
+// cleanupResourceSlices stops the ResourceSlice controllers and deletes the
+// slices they published.
+func (m *CDIManager) cleanupResourceSlices(controllers map[string]*resourceslice.Controller) {
+	for driverName, c := range controllers {
+		slog.Info("Stopping ResourceSlice controller", "driverName", driverName)
+		c.Stop()
+	}
+
+	// Parent ctx is already canceled by the time this runs, so use a fresh one.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	for driverName := range controllers {
+		slog.Info("Deleting ResourceSlices published by this driver", "driverName", driverName)
+		err := m.coreClient.ResourceV1().ResourceSlices().DeleteCollection(
+			ctx,
+			metav1.DeleteOptions{},
+			metav1.ListOptions{
+				FieldSelector: "spec.driver=" + driverName,
+			},
+		)
+		if err != nil {
+			slog.Error("Failed to delete ResourceSlices", "driverName", driverName, "error", err)
+			continue
+		}
+	}
 }
 
 func (m *CDIManager) startResourceSliceController(ctx context.Context) (map[string]*resourceslice.Controller, error) {
