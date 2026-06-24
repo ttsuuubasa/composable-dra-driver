@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	resourceapi "k8s.io/api/resource/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -197,7 +198,10 @@ func (m *CDIManager) cleanupResourceSlices(controllers map[string]*resourceslice
 			ctx,
 			metav1.DeleteOptions{},
 			metav1.ListOptions{
-				FieldSelector: "spec.driver=" + driverName,
+				FieldSelector: fields.Set{
+					resourceapi.ResourceSliceSelectorDriver:   driverName,
+					resourceapi.ResourceSliceSelectorNodeName: "",
+				}.AsSelector().String(),
 			},
 		)
 		if err != nil {
