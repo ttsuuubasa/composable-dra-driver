@@ -193,10 +193,11 @@ func (m *CDIManager) cleanupResourceSlices(controllers map[string]*resourceslice
 	defer cancel()
 
 	for driverName := range controllers {
-		slog.Info("Deleting ResourceSlices published by this driver", "driverName", driverName)
-		err := m.coreClient.ResourceV1().ResourceSlices().DeleteCollection(
+		// List the cluster-wide slices for this driver, then delete only those
+		// whose pool name matches one we published. This guards against deleting
+		// slices from another driver that happens to share the same driver name.
+		list, err := m.coreClient.ResourceV1().ResourceSlices().List(
 			ctx,
-			metav1.DeleteOptions{},
 			metav1.ListOptions{
 				FieldSelector: fields.Set{
 					resourceapi.ResourceSliceSelectorDriver:   driverName,
@@ -205,8 +206,20 @@ func (m *CDIManager) cleanupResourceSlices(controllers map[string]*resourceslice
 			},
 		)
 		if err != nil {
-			slog.Error("Failed to delete ResourceSlices", "driverName", driverName, "error", err)
+			slog.Error("Failed to list ResourceSlices", "driverName", driverName, "error", err)
 			continue
+		}
+
+		publishedPools := m.namedDriverResources[driverName].Pools
+		for i := range list.Items {
+			s := &list.Items[i]
+			if _, ours := publishedPools[s.Spec.Pool.Name]; !ours {
+				continue
+			}
+			slog.Info("Deleting ResourceSlice", "name", s.Name, "driverName", driverName, "pool", s.Spec.Pool.Name)
+			if err := m.coreClient.ResourceV1().ResourceSlices().Delete(ctx, s.Name, metav1.DeleteOptions{}); err != nil {
+				slog.Error("Failed to delete ResourceSlice", "name", s.Name, "error", err)
+			}
 		}
 	}
 }
